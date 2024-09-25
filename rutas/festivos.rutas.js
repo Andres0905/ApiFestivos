@@ -1,9 +1,8 @@
-module.exports= (app) => {
-    const express = require('express');
-const controlador = require("../controladores/festivos.controlador");
+const express = require('express');
+const router = express.Router();
+const { verificarFestivo  } = require('../controladores/festivos.controlador');
 
-app.get("/festivos", controlador.listar);
-app.get("/festivos/:año/:mes/:dia", controlador.verificar);
+// Ruta para verificar si una fecha es festivo
+router.get('/verificar/:anio/:mes/:dia', verificarFestivo);
 
-}
-
+module.exports = router; 

@@ -1,67 +1,118 @@
-const bd = require('./bd');
+const mongoose = require('mongoose');
+const { obtenerSemanaSanta, agregarDias, siguienteLunes } = require('../servicios/calculo.fechas');
+const Tipo = require('../modelos/festivos');
 
-const { obtenerSemanaSanta, agregarDias, siguienteLunes } = require('../servicios/calculo.fechas');// Importar tus funciones de cálculo
-
-const festivoRepositorio  =  { };
-
-// Función para listar festivos con sus fechas exactas
-festivoRepositorio.verificar = async (respuesta, fechaEntrada) => {
-    const basedatos = bd.obtenerBD(); // Obtener la conexión a la base de datos
+async function verificarFestivo(fecha) {
     try {
-        // Obtener los festivos desde la colección 'tipos'
-        const tiposFestivos = await basedatos.collection('tipos').find({}).toArray();
-        const año = fechaEntrada.getFullYear(); // Obtener el año de la fecha de entrada
-        const fechaSemanaSanta = obtenerSemanaSanta(año);
+        const anio = fecha.getFullYear();
+        const { festivosPuente, festivoPascua, festivoSemSanta } = await obtenerFestivosAgrupadosPorTipo();
 
-        // Procesar cada tipo de festivo y calcular la fecha correspondiente
-        const festivosConFechas = tiposFestivos.flatMap(tipo => {
-            return tipo.festivos.map(festivo => {
-                let fecha;
+        // 1. Verificar festivos fijos
 
-                // Si el festivo tiene un día y mes definido (fijo)
-                if (festivo.dia && festivo.mes) {
-                    fecha = new Date(año, festivo.mes - 1, festivo.dia);
-                } 
-                // Si el festivo está basado en días respecto a la Pascua (Semana Santa)
-                else if (festivo.diasPascua !== undefined) {
-                    fecha = agregarDias(fechaSemanaSanta, festivo.diasPascua);
-                }
-
-                // Si el festivo está sujeto a trasladarse al siguiente lunes
-                if (tipo.tipo === 'Ley de Puente festivo') {
-                    fecha = siguienteLunes(fecha);
-                }
-
-                return {
-                    nombre: festivo.nombre,
-                    fecha: fecha ? fecha.toISOString().split('T')[0] : null // Formato ISO YYYY-MM-DD
-                };
-            });
+        const festivoFijo = await Tipo.findOne({
+            tipo: 'Fijo',
+            'festivos.dia': fecha.getDate(),
+            'festivos.mes': (fecha.getMonth() + 1)
         });
+        if (festivoFijo) {
+            const festivoEncontrado = festivoFijo.festivos.find(f => f.dia === fecha.getDate() && f.mes === (fecha.getMonth() + 1));
+            if (festivoEncontrado) {
+                return { verificarFestivo: true, nombre: festivoEncontrado.nombre };
+            }
+        }
 
-        // Devolver la lista de festivos con sus fechas exactas
-        return respuesta.status(200).send(festivosConFechas);
+        // 2. Verificar festivos de la Ley de Puente festivo
+        for (let i = 0; i < festivosPuente.length; i++) {
+            const fechaFestivo = new Date(anio, festivosPuente[i].mes - 1, festivosPuente[i].dia);
+            const fechaFestivoTrasladada = siguienteLunes(new Date(fechaFestivo));
+            if (fechaFestivoTrasladada.getTime() === fecha.getTime()) {
+                return { verificarFestivo: true };
+            }
+        }
+
+        // 3. Verificar festivos relacionados con la semana santa
+        for (let i = 0; i < festivoSemSanta.length; i++) {
+            const diaPascua = festivoSemSanta[i].diasPascua;
+            const fechaPascua = obtenerSemanaSanta(anio);
+            const fechaFestivoTrasladada = agregarDias(fechaPascua, diaPascua);
+            if (fechaFestivoTrasladada.getTime() === fecha.getTime()) {
+                return { verificarFestivo: true };
+            }
+        }
+
+        // 4. Verificar festivos relacionados con los dias de pascua
+        for (let i = 0; i < festivoPascua.length; i++) {
+            const diaPascua = festivoPascua[i].diasPascua;
+            fechaPascua = obtenerSemanaSanta(anio);
+            const fechaFestivoTrasladada = agregarDias(fechaPascua, diaPascua);
+            const fechaFestivoTrasladada2 = siguienteLunes(new Date(fechaFestivoTrasladada));
+            if (fechaFestivoTrasladada2.getTime() === fecha.getTime()) {
+                return { verificarFestivo: true };
+            }
+        }
+        // Si no se encontró festivo
+        return { verificarFestivo: false };
 
     } catch (error) {
-        console.error('Error al listar los festivos', error);
-        return respuesta.status(500).send({ mensaje: "Error al listar los festivos" });
+        console.error('Error al verificar el festivo:', error);
+        return { verificarFestivo: false, error: 'Error al verificar el festivo.' };
     }
 }
 
-festivoRepositorio.listar = async (respuesta) => {
-    const basedatos = bd.obtenerBD();  // Obteniendo la base de datos desde bd.js
+const obtenerFestivosAgrupadosPorTipo = async () => {
+    let festivosPuente = [];
+    let festivoPascua = [];
+    let festivoSemSanta = [];
     try {
-        // Consultar la colección "tipos" y devolver nombres, días y meses de los festivos
-        const resultado = await basedatos.collection('tipos')
-            .find({}, { projection: { "festivos.nombre": 1, "festivos.dia": 1, "festivos.mes": 1, _id: 0 } })  // Proyectar nombre, día y mes
-            .toArray();
 
-        // Devolver el resultado al callback
-        return respuesta(null, resultado);
-    } catch (error) {
-        console.error('Error al listar los festivos', error);
-        respuesta(error, null);
+        const festivosPuenteResult = await Tipo.findOne({ id: 2 });
+
+        if (festivosPuenteResult && Array.isArray(festivosPuenteResult.festivos)) {
+            festivosPuente = festivosPuenteResult.festivos.map(festivo => ({
+                dia: festivo.dia,
+                mes: festivo.mes,
+                nombre: festivo.nombre
+            }));
+        } else {
+            console.warn('El campo festivos no es un arreglo.');
+        }
+
+
+        const festivospascuaSemSanta = await Tipo.findOne({ id: 3 });
+
+        if (festivospascuaSemSanta && Array.isArray(festivospascuaSemSanta.festivos)) {
+            festivoSemSanta = festivospascuaSemSanta.festivos.map(festivo => ({
+                nombre: festivo.nombre,
+                diasPascua: festivo.diasPascua
+            }));
+        } else {
+            console.warn('El campo festivospascuaSemSanta no es un arreglo.');
+        }
+
+        const festivospascuaResult = await Tipo.findOne({ id: 4 }); // Usar findOne
+
+        if (festivospascuaResult && Array.isArray(festivospascuaResult.festivos)) {
+            festivoPascua = festivospascuaResult.festivos.map(festivo => ({
+                nombre: festivo.nombre,
+                diasPascua: festivo.diasPascua
+            }));
+        } else {
+            console.warn('El campo festivospascuaResult no es un arreglo.');
+        }
+
+
+        return {
+            festivosPuente,
+            festivoSemSanta,
+            festivoPascua
+        }
+
     }
-}
 
-module.exports = festivoRepositorio;
+    catch (error) {
+        console.error('Error al obtener los festivos:', error.message);  // Imprimir el mensaje del error
+        throw new Error('Error al obtener los festivos de la base de datos: ' + error.message);  // Agregar detalles adicionales al error
+    }
+};
+
+module.exports = { verificarFestivo, obtenerFestivosAgrupadosPorTipo };

@@ -1,31 +1,40 @@
-
-function obtenerSemanaSanta(año) {
-    const a = año % 19;
-    const b = año % 4;
-    const c = año % 7;
+function obtenerSemanaSanta(anio) {
+    const a = anio % 19;
+    const b = anio % 4;
+    const c = anio % 7;
     const d = (19 * a + 24) % 30;
+    const e = (2 * b + 4 * c + 6 * d + 5) % 7;
 
-    const dias = d + (2 * b + 4 * c + 6 * d + 5) % 7;
+    let dia = 22 + d + e;
     let mes = 3;
-    let dia = 15 + dias;
+
     if (dia > 31) {
         mes = 4;
         dia = dia - 31;
     }
-    return new Date(año, mes - 1, dia)
+
+    if (dia === 26 && mes === 4) {
+        dia = 19;
+    }
+    if (dia === 25 && mes === 4 && d === 28 && e === 6 && a > 10) {
+        dia = 18;
+    }
+    const fechaPascua = new Date(anio, mes - 1, dia);
+    return fechaPascua;
 }
 
-function agregarDias(fecha, dias) {
-    const fechaT = new Date(fecha);
-    fechaT.setDate(fechaT.getDate() + dias);
-    return fechaT;
+function agregarDias(fechaPascua, diasDesdePascua) {
+    const fecha = new Date(fechaPascua);
+    fecha.setDate(fecha.getDate() + diasDesdePascua);
+    return fecha;
 }
 
-function siguienteLunes(fecha) {
-	while (fecha.getDay() !== 1) {
-		fecha.setDate(fecha.getDate() + 1);
-	}
-	return fecha;
+function siguienteLunes(fechaFestivo) {
+    const diaSemana = fechaFestivo.getDay();
+    if (diaSemana >= 2 && diaSemana <= 6) {
+        fechaFestivo.setDate(fechaFestivo.getDate() + (8 - diaSemana));
+    }
+    return fechaFestivo;
 }
 
 module.exports = {

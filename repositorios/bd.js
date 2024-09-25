@@ -1,23 +1,22 @@
-const { MongoClient} = require('mongodb');
+const mongoose = require('mongoose');
 const configBD = require('../configuracion/bd.config');
-const url = `mongodb://${configBD.SERVIDOR}:${configBD.PUERTO}`;
 
-const cliente= new MongoClient(url);
+const url = `mongodb://${configBD.SERVIDOR}:${configBD.PUERTO}/${configBD.BASEDATOS}`;
 
-let basedatos;
-
-module.exports = {
-    conectar: async function(){
-        try{
-            await cliente.connect();
-            console.log("se ha establecido conexion a la base de datos");
-            basedatos = cliente.db(configBD.BASEDATOS);
-        }
-        catch(error){
-            console.log(error);
-        }
-    },
-    obtenerBD: function(){
-        return basedatos;
+async function conectar() {
+    try {
+        await mongoose.connect(url);
+        console.log('Se ha establecido conexión a la base de datos');
+    } catch (error) {
+        console.error('No se pudo conectar a la base de datos:', error);
     }
 }
+
+function obtenerBD() {
+    return mongoose.connection;
+}
+
+module.exports = {
+    conectar,
+    obtenerBD
+};
