@@ -1,4 +1,6 @@
-const { verificarFestivo } = require('../repositorios/festivos.repositorio');
+const festivos = require('../modelos/festivos');
+const { verificarFestivo, listar } = require('../repositorios/festivos.repositorio');
+
 
 exports.verificarFestivo = async (solicitud, respuesta) => {
     const { anio, mes, dia } = solicitud.params;
@@ -38,5 +40,16 @@ exports.verificarFestivo = async (solicitud, respuesta) => {
     } catch (error) {
         console.error('Error al verificar la fecha:', error);
         respuesta.status(500).json({ error: 'Error interno del servidor' });
+    }
+};
+
+exports.listar = async (solicitud, respuesta) => {
+    const { anio } = solicitud.params;  
+    try {
+       
+        const festivos = await listar(anio);
+        return respuesta.status(200).json(festivos);  
+    } catch (error) {
+        return respuesta.status(500).json({ mensaje: `Error al obtener los festivos del año ${anio}`, error: error.message });
     }
 };

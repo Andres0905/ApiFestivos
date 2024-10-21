@@ -1,8 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { verificarFestivo  } = require('../controladores/festivos.controlador');
+const controlador = require('../controladores/festivos.controlador');
 
 // Ruta para verificar si una fecha es festivo
-router.get('/verificar/:anio/:mes/:dia', verificarFestivo);
+router.get('/verificar/:anio/:mes/:dia', controlador.verificarFestivo);
 
-module.exports = router; 
+// Ruta para listar los festivos de un año
+router.get('/listar/:anio', controlador.listar);
+
+
+
+module.exports = router;
