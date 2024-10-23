@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { obtenerSemanaSanta, agregarDias, siguienteLunes } = require('../servicios/calculo.fechas');
+const { obtenerSemanaSanta, agregarDias, siguienteLunes, formatearFecha } = require('../servicios/calculo.fechas');
 const Tipo = require('../modelos/festivos');
 
 async function verificarFestivo(fecha) {
@@ -162,7 +162,8 @@ async function listar(anio) {
         });
 
         // Ordenar los festivos por fecha
-        festivos.sort((a, b) => a.fecha.localeCompare(b.fecha));  // Comparar como strings YYYY-MM-DD
+        
+        festivos.sort((a, b) => a.fecha.localeCompare(b.fecha));  
 
         return festivos;
     } catch (error) {
@@ -171,11 +172,6 @@ async function listar(anio) {
     }
 }
 
-function formatearFecha(fecha) {
-    const anio = fecha.getFullYear();
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0');  
-    const dia = String(fecha.getDate()).padStart(2, '0');   
-    return `${anio}-${mes}-${dia}`;  
-}
+
 
 module.exports = { verificarFestivo, obtenerFestivosAgrupadosPorTipo, listar };
